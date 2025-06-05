@@ -2,8 +2,8 @@
 {
     public class LoginRequestModel
     {
-        public string users_id { get; set; }
-        public string users_password { get; set; }
+        public string users_id { get; set; } = string.Empty;
+        public string users_password { get; set; } = string.Empty;
 
         public LoginRequestModel() { }
 

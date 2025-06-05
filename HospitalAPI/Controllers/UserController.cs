@@ -1,122 +1,189 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using APIhospital.Models;
-using APIhospital.Data;
-using Microsoft.AspNetCore.Identity.Data;
+﻿using APIhospital.Data;
+using HospitalAPI.DTOs.RoleDTOs;
+using HospitalAPI.DTOs.UserDTOs;
 using HospitalAPI.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Net.NetworkInformation;
+using System.Security.Cryptography;
+using System.Text;
 
-namespace MiniMarketAPI.Controllers
+namespace HospitalAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class UserController : ControllerBase
+    public class UserController:ControllerBase
     {
         private readonly AppDbContext _context;
-
         public UserController(AppDbContext context)
         {
             _context = context;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<object>>> GetUsers()
+        //Hashear password
+        private byte[] HashPassword(string password)
         {
-            var users = await _context.users.ToListAsync();
-
-            var result = users.Select(u => new
+            using (var sha256 = SHA256.Create())
             {
-                u.users_serial,
-                u.users_id,
-                u.users_firstName,
-                u.users_middleName,
-                u.users_lastName,
-                u.users_secondLastName,
-                u.users_email,
-                u.users_userName,
-                users_dateOfBirth = u.users_dateOfBirth.ToString("yyyy-MM-dd"),
-                users_createdAt = u.users_createdAt?.ToString("yyyy-MM-dd HH:mm:ss"),
-                users_updatedAt = u.users_updatedAt?.ToString("yyyy-MM-dd HH:mm:ss"),
-                u.users_roleSerial,
-                users_photo = u.users_photo != null ? Convert.ToBase64String(u.users_photo) : null
+                return sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+            }
+        }
+
+        [HttpGet("role")]
+        public async Task<ActionResult<IEnumerable<RoleReadDTOs>>> GetRoles()
+        {
+            var roles = await _context.role.ToListAsync();
+
+            var rolesDTOs = roles.Select(f => new RoleReadDTOs
+            {
+                RoleSerial = f.role_serial,
+                RoleName = f.role_name
+            });
+            return Ok(rolesDTOs);
+        }
+
+        //GET: api/user
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<UserReadDTOs>>> GetUsers()
+        {
+            var users=await _context.user.ToListAsync();
+
+            var userDTOs = users.Select(f => new UserReadDTOs
+            {
+                UserSerial = f.user_serial,
+                UserPhoto = f.user_photo !=null?Convert.ToBase64String(f.user_photo) : null,
+                UserId = f.user_id,
+                UserFirstName = f.user_firstname,
+                UserMiddleName = f.user_middlename,
+                UserLastName = f.user_lastname,
+                UserSecondLastName = f.user_secondlastname,
+                UserBirthDate = f.user_birthdate,
+                UserUserName = f.user_username,
+                UserEmail = f.user_email
             });
 
-            return Ok(result);
+            return Ok(userDTOs);
         }
 
-
-        //POST: api/users
-       [HttpPost]
-        public async Task<ActionResult<UserModel>> CreateUser(UserModel user)
+        // GET: api/User/ByCedula/{cedula}
+        [HttpGet("ByCedula/{cedula}")]
+        public async Task<ActionResult<UserReadDTOs>> GetUserByCedula(string cedula)
         {
-            user.users_createdAt = DateTime.UtcNow;
-            user.users_updatedAt = DateTime.UtcNow;
-
-            _context.users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetUsers), new { id = user.users_serial }, user);
-        }
-
-
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequestModel request)
-        {
-            if (string.IsNullOrWhiteSpace(request.users_id) || string.IsNullOrWhiteSpace(request.users_password))
-                return BadRequest("Cédula y contraseña son requeridas.");
-
-            try
-            {
-                var user = await _context.users.FirstOrDefaultAsync(u => u.users_id == request.users_id);
-
-                if (user == null)
-                    return Unauthorized("Usuario no encontrado.");
-
-                var inputPasswordBytes = System.Text.Encoding.UTF8.GetBytes(request.users_password);
-                bool passwordsMatch = inputPasswordBytes.SequenceEqual(user.users_password);
-
-                if (!passwordsMatch)
-                    return Unauthorized("Contraseña incorrecta.");
-
-                return Ok(new
-                {
-                    user.users_id,
-                    user.users_firstName,
-                    user.users_lastName,
-                    user.users_email,
-                    user.users_userName
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
-            }
-        }
-
-        [HttpGet("role/{userId}")]
-        public async Task<IActionResult> GetUserRole(string userId)
-        {
-            if (string.IsNullOrEmpty(userId))
-            {
-                return BadRequest(new { message = "El userId es obligatorio." });
-            }
-
-            var user = await _context.users
-                .FirstOrDefaultAsync(u => u.users_id == userId); // <-- Cambia 'UsersId' si tu campo real se llama diferente
+            var user = await _context.user
+                .FirstOrDefaultAsync(u => u.user_id == cedula);
 
             if (user == null)
             {
-                return NotFound(new { message = "Usuario no encontrado." });
+                return NotFound(new { message = "No se encontró ningún usuario con la cédula proporcionada." });
             }
 
-            // Creamos un objeto RoleUserModel con los datos que quieres exponer
-            var roleUser = new RoleUserModel(user.users_id, user.users_roleSerial);
+            var userDTO = new UserReadDTOs
+            {
+                UserSerial = user.user_serial,
+                UserPhoto = user.user_photo != null ? Convert.ToBase64String(user.user_photo) : null,
+                UserId = user.user_id,
+                UserFirstName = user.user_firstname,
+                UserMiddleName = user.user_middlename,
+                UserLastName = user.user_lastname,
+                UserSecondLastName = user.user_secondlastname,
+                UserBirthDate = user.user_birthdate,
+                UserUserName = user.user_username,
+                UserEmail = user.user_email
+            };
 
-            return Ok(roleUser);
+            return Ok(userDTO);
         }
 
 
+        //POST: api/user
+        [HttpPost]
+        public async Task<ActionResult<UserReadDTOs>> CreateUsers(UserCreateDTOs userDTOs)
+        {
+            //map dto entity PIlas
+            var users = new UserModel
+            {
+                user_photo = string.IsNullOrWhiteSpace(userDTOs.UserPhoto) ? null : Convert.FromBase64String(userDTOs.UserPhoto),
+                user_id = userDTOs.UserId,
+                user_firstname = userDTOs.UserFirstName,
+                user_middlename = string.IsNullOrWhiteSpace(userDTOs.UserMiddleName) ? null : userDTOs.UserMiddleName,
+                user_lastname = userDTOs.UserLastName,
+                user_secondlastname = string.IsNullOrWhiteSpace(userDTOs.UserSecondLastName) ? null : userDTOs.UserMiddleName,
+                user_birthdate = userDTOs.UserBirthDate,
+                user_username = userDTOs.UserUsername,
+                user_email = string.IsNullOrWhiteSpace(userDTOs.UserEmail) ? null : userDTOs.UserEmail,
+                user_password = HashPassword(userDTOs.UserPassword)
+            };
 
+            //Insert user in Db
+            _context.user.Add(users);
+            await _context.SaveChangesAsync();
 
+            //asigned role for defect
+            var defaultRoleId = 3;
+            _context.user_role.Add(new UserRoleModel
+            {
+                userrole_userserial = users.user_serial,
+                userrole_roleserial = defaultRoleId,
+                assigned_at = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            // 4. Preparar DTO de respuesta (sin contraseña)
+            var result = new UserReadDTOs
+            {
+                UserSerial = users.user_serial,
+                UserPhoto = users.user_photo != null ? Convert.ToBase64String(users.user_photo) : null,
+                UserId = users.user_id,
+                UserFirstName = users.user_firstname,
+                UserMiddleName = users.user_middlename,
+                UserLastName = users.user_lastname,
+                UserSecondLastName = users.user_secondlastname,
+                UserBirthDate = users.user_birthdate,
+                UserUserName = users.user_username,
+                UserEmail = users.user_email
+            };
+
+            return CreatedAtAction(nameof(GetUsers), new { id = users.user_serial }, result);
+
+        }
+
+        // POST: Api/User/Login
+        [HttpPost("Login")]
+        public async Task<ActionResult<string>> Login(UserLoginDTOs loginDTO)
+        {
+            var user = await _context.user.FirstOrDefaultAsync(u => u.user_id == loginDTO.UserId);
+
+            if (user == null)
+            {
+                return Unauthorized("Usuario no encontrado.");
+            }
+
+            // Hasheamos la contraseña ingresada por el usuario
+            var hashedInputPassword = HashPassword(loginDTO.UserPassword);
+
+            // Comparamos los bytes de la contraseña almacenada vs. la ingresada
+            if (!user.user_password.SequenceEqual(hashedInputPassword))
+            {
+                return Unauthorized("Contraseña incorrecta.");
+            }
+
+            var roles = await _context.user_role
+                .Where(ur => ur.userrole_userserial == user.user_serial)
+                .Include(ur => ur.Role)
+                .Select(ur => new RoleReadDTOs
+                {
+                    RoleSerial = ur.Role.role_serial,
+                    RoleName = ur.Role.role_name,
+                }).ToListAsync();
+
+            return Ok(new
+            {
+                Message = "Login exitoso.",
+                UserId = user.user_serial,
+                Roles = roles
+            });
+        }
 
     }
 }

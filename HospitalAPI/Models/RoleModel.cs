@@ -1,22 +1,22 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace APIhospital.Models
+namespace HospitalAPI.Models
 {
     public class RoleModel
     {
         [Key]
-        public int roles_serial { get; set; }
-        public string roles_name { get; set; }
+        public int role_serial { get; set; }
+        public string role_name { get; set; } = string.Empty;
 
-        public RoleModel()
+        public ICollection<UserRoleModel> UserRoles { get; set; } = new List<UserRoleModel>();
+
+        public RoleModel() { }
+
+        public RoleModel(int role_serial, string role_name)
         {
-
-        }
-
-        public RoleModel(int roles_serial, string roles_name)
-        {
-            //this.roles_serial = roles_serial;
-            this.roles_name = roles_name;
+            this.role_serial = role_serial;
+            this.role_name = role_name;
+            this.UserRoles = new List<UserRoleModel>();
         }
     }
 }
