@@ -19,11 +19,11 @@ namespace HospitalAPI.Controllers
 
         //GET: api/role
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<RoleReadDTOs>>> GetRoles()
+        public async Task<ActionResult<IEnumerable<RoleReadDTO>>> GetRoles()
         {
             var roles = await _context.role.ToListAsync();
 
-            var roleDTOs = roles.Select(f => new RoleReadDTOs
+            var roleDTOs = roles.Select(f => new RoleReadDTO
             {
                 RoleSerial = f.role_serial,
                 RoleName = f.role_name

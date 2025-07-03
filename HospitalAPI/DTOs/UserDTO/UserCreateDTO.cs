@@ -1,8 +1,7 @@
 ﻿namespace HospitalAPI.DTOs.UserDTOs
 {
-    public class UserCreateDTOs
+    public class UserCreateDTO
     {
-        public string? UserPhoto { get; set; }
         public string UserId { get; set; } = string.Empty;
         public string UserFirstName { get; set; } = string.Empty;
         public string? UserMiddleName { get; set; }

@@ -1,6 +1,6 @@
 ﻿namespace HospitalAPI.DTOs.UserDTOs
 {
-    public class UserReadDTOs
+    public class UserReadDTO
     {
         public int UserSerial { get; set; }
         public string? UserPhoto { get; set; }

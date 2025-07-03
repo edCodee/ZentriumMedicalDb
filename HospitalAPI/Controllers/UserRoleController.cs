@@ -19,41 +19,22 @@ namespace HospitalAPI.Controllers
 
         //GET: api/userrole
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<UserRoleReadDTOs>>> GetUserRoles()
+        public async Task<ActionResult<IEnumerable<UserRoleReadDTO>>> GetUserRole()
         {
             var userRoles = await _context.user_role.ToListAsync();
 
-            var userRoleDTOs = userRoles.Select(f => new UserRoleReadDTOs
+            var userRoleDTOs = userRoles.Select(f => new UserRoleReadDTO
             {
-                UserRoleUserSerial = f.userrole_userserial,
-                UserRoleRoleSerial = f.userrole_roleserial,
-                UserRoleAssignedAt = f.assigned_at
+                UserRoleUserSerial = f.userRole_userSerial,
+                UserRoleRoleSerial = f.userRole_roleSerial,
+                UserRoleAssignedAt = f.assigned_at ?? DateTime.MinValue
             });
-
             return Ok(userRoleDTOs);
         }
 
-        //[HttpGet]
-        //public async Task<ActionResult<IEnumerable<UserRoleReadDTOs>>> GetUserRoles()
-        //{
-        //    var userRoles = await _context.userRole
-        //        .Include(ur => ur.User)
-        //        .Include(ur => ur.Role)
-        //        .ToListAsync();
-
-        //    var userRoleDTOs = userRoles.Select(f => new UserRoleReadDTOs
-        //    {
-        //        UserRole_UserSerial = f.userrole_userserial,
-        //        UserRole_RoleSerial = f.userrole_roleserial,
-        //        UserRoleAssigned_at = f.assigned_at
-        //    });
-
-        //    return Ok(userRoleDTOs);
-        //}
-
         //POST: api/userrole
         [HttpPost]
-        public async Task<ActionResult<UserRoleReadDTOs>> CreateUserRole([FromBody] UserRoleCreateDTOs userRoleDTOs)
+        public async Task<ActionResult<UserRoleReadDTO>> CreateUserRole([FromBody] UserRoleCreateDTO userRoleDTOs)
         {
             // Validación opcional: evitar duplicados
             var exists = await _context.user_role.FindAsync(userRoleDTOs.UserRoleUserSerial, userRoleDTOs.UserRoleRoleSerial);
@@ -64,26 +45,26 @@ namespace HospitalAPI.Controllers
 
             var userRole = new UserRoleModel
             {
-                userrole_userserial = userRoleDTOs.UserRoleUserSerial,
-                userrole_roleserial = userRoleDTOs.UserRoleRoleSerial,
+                userRole_userSerial = userRoleDTOs.UserRoleUserSerial,
+                userRole_roleSerial = userRoleDTOs.UserRoleRoleSerial,
                 assigned_at = userRoleDTOs.UserRoleAssignedAt
             };
 
             _context.user_role.Add(userRole);
             await _context.SaveChangesAsync();
 
-            var result = new UserRoleReadDTOs
+            var result = new UserRoleReadDTO
             {
-                UserRoleUserSerial = userRole.userrole_userserial,
-                UserRoleRoleSerial = userRole.userrole_roleserial,
-                UserRoleAssignedAt = userRole.assigned_at
+                UserRoleUserSerial = userRole.userRole_userSerial,
+                UserRoleRoleSerial = userRole.userRole_roleSerial,
+                UserRoleAssignedAt = userRole.assigned_at ?? DateTime.MinValue
             };
 
             // Como no hay ID único, devolvemos los dos seriales como identificación
-            return CreatedAtAction(nameof(GetUserRoles), new
+            return CreatedAtAction(nameof(GetUserRole), new
             {
-                userSerial = userRole.userrole_userserial,
-                roleSerial = userRole.userrole_roleserial
+                userSerial = userRole.userRole_userSerial,
+                roleSerial = userRole.userRole_roleSerial
             }, result);
         }
     }

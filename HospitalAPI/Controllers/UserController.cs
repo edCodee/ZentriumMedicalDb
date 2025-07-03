@@ -5,7 +5,10 @@ using HospitalAPI.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net.NetworkInformation;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -21,54 +24,103 @@ namespace HospitalAPI.Controllers
             _context = context;
         }
 
-        //Hashear password
-        private byte[] HashPassword(string password)
+        /// <summary>
+        /// Hash con SHA256
+        /// </summary>
+        private static byte[] HashPassword(string password)
         {
-            using (var sha256 = SHA256.Create())
-            {
-                return sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            }
+            using var sha256 = SHA256.Create();
+            return sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
         }
 
-        [HttpGet("role")]
-        public async Task<ActionResult<IEnumerable<RoleReadDTOs>>> GetRoles()
+        [HttpGet("roles")]
+        public async Task<ActionResult<IEnumerable<RoleReadDTO>>> GetRoles()
         {
-            var roles = await _context.role.ToListAsync();
+            var roles = await _context.role
+                .Select(r => new RoleReadDTO
+                {
+                    RoleSerial = r.role_serial,
+                    RoleName = r.role_name
+                })
+                .ToListAsync();
 
-            var rolesDTOs = roles.Select(f => new RoleReadDTOs
-            {
-                RoleSerial = f.role_serial,
-                RoleName = f.role_name
-            });
-            return Ok(rolesDTOs);
+            return Ok(roles);
         }
 
         //GET: api/user
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<UserReadDTOs>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<UserReadDTO>>> GetUsers()
         {
             var users=await _context.user.ToListAsync();
 
-            var userDTOs = users.Select(f => new UserReadDTOs
+            var userDTOs = users.Select(f => new UserReadDTO
             {
                 UserSerial = f.user_serial,
                 UserPhoto = f.user_photo !=null?Convert.ToBase64String(f.user_photo) : null,
                 UserId = f.user_id,
-                UserFirstName = f.user_firstname,
-                UserMiddleName = f.user_middlename,
-                UserLastName = f.user_lastname,
-                UserSecondLastName = f.user_secondlastname,
-                UserBirthDate = f.user_birthdate,
-                UserUserName = f.user_username,
+                UserFirstName = f.user_firstName,
+                UserMiddleName = f.user_middleName,
+                UserLastName = f.user_lastName,
+                UserSecondLastName = f.user_secondLastName,
+                UserBirthDate = f.user_birthDate,
+                UserUserName = f.user_userName,
                 UserEmail = f.user_email
             });
 
             return Ok(userDTOs);
         }
 
+        //POST: api/createuser
+        [HttpPost]
+        public async Task<ActionResult<UserReadDTO>> CreateUser(UserCreateDTO dto)
+        {
+            var user = new UserModel
+            {
+                //user_photo = string.IsNullOrWhiteSpace(dto.UserPhoto) ? null : Convert.FromBase64String(dto.UserPhoto),
+                user_id = dto.UserId,
+                user_firstName = dto.UserFirstName,
+                user_middleName = string.IsNullOrWhiteSpace(dto.UserMiddleName) ? null : dto.UserMiddleName,
+                user_lastName = dto.UserLastName,
+                user_secondLastName = string.IsNullOrWhiteSpace(dto.UserSecondLastName) ? null : dto.UserSecondLastName,
+                user_birthDate = dto.UserBirthDate.Date,
+                user_userName = dto.UserUsername,
+                user_email = string.IsNullOrWhiteSpace(dto.UserEmail) ? null : dto.UserEmail,
+                user_password = HashPassword(dto.UserPassword)
+            };
+
+            _context.user.Add(user);
+            await _context.SaveChangesAsync();
+
+            // Asignar rol por defecto (paciente)
+            var userRole = new UserRoleModel
+            {
+                userRole_userSerial = user.user_serial,
+                userRole_roleSerial = 3, // rol 2 por defecto
+                assigned_at = DateTime.Now
+            };
+            _context.user_role.Add(userRole);
+            await _context.SaveChangesAsync();
+
+            var result = new UserReadDTO
+            {
+                UserSerial = user.user_serial,
+                UserPhoto = user.user_photo != null ? Convert.ToBase64String(user.user_photo) : null,
+                UserId = user.user_id,
+                UserFirstName = user.user_firstName,
+                UserMiddleName = user.user_middleName,
+                UserLastName = user.user_lastName,
+                UserSecondLastName = user.user_secondLastName,
+                UserBirthDate = user.user_birthDate,
+                UserUserName = user.user_userName,
+                UserEmail = user.user_email
+            };
+
+            return CreatedAtAction(nameof(GetUsers), new { id = user.user_serial }, result);
+        }
+
         // GET: api/User/ByCedula/{cedula}
         [HttpGet("ByCedula/{cedula}")]
-        public async Task<ActionResult<UserReadDTOs>> GetUserByCedula(string cedula)
+        public async Task<ActionResult<UserReadDTO>> GetUserByCedula(string cedula)
         {
             var user = await _context.user
                 .FirstOrDefaultAsync(u => u.user_id == cedula);
@@ -78,111 +130,89 @@ namespace HospitalAPI.Controllers
                 return NotFound(new { message = "No se encontró ningún usuario con la cédula proporcionada." });
             }
 
-            var userDTO = new UserReadDTOs
+            var userDTO = new UserReadDTO
             {
                 UserSerial = user.user_serial,
                 UserPhoto = user.user_photo != null ? Convert.ToBase64String(user.user_photo) : null,
                 UserId = user.user_id,
-                UserFirstName = user.user_firstname,
-                UserMiddleName = user.user_middlename,
-                UserLastName = user.user_lastname,
-                UserSecondLastName = user.user_secondlastname,
-                UserBirthDate = user.user_birthdate,
-                UserUserName = user.user_username,
+                UserFirstName = user.user_firstName,
+                UserMiddleName = user.user_middleName,
+                UserLastName = user.user_lastName,
+                UserSecondLastName = user.user_secondLastName,
+                UserBirthDate = user.user_birthDate,
+                UserUserName = user.user_userName,
                 UserEmail = user.user_email
             };
 
             return Ok(userDTO);
         }
 
-
-        //POST: api/user
-        [HttpPost]
-        public async Task<ActionResult<UserReadDTOs>> CreateUsers(UserCreateDTOs userDTOs)
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] UserLoginDTO request)
         {
-            //map dto entity PIlas
-            var users = new UserModel
+            if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.UserPassword))
+                return BadRequest("Cédula y contraseña requeridas.");
+
+            try
             {
-                user_photo = string.IsNullOrWhiteSpace(userDTOs.UserPhoto) ? null : Convert.FromBase64String(userDTOs.UserPhoto),
-                user_id = userDTOs.UserId,
-                user_firstname = userDTOs.UserFirstName,
-                user_middlename = string.IsNullOrWhiteSpace(userDTOs.UserMiddleName) ? null : userDTOs.UserMiddleName,
-                user_lastname = userDTOs.UserLastName,
-                user_secondlastname = string.IsNullOrWhiteSpace(userDTOs.UserSecondLastName) ? null : userDTOs.UserMiddleName,
-                user_birthdate = userDTOs.UserBirthDate,
-                user_username = userDTOs.UserUsername,
-                user_email = string.IsNullOrWhiteSpace(userDTOs.UserEmail) ? null : userDTOs.UserEmail,
-                user_password = HashPassword(userDTOs.UserPassword)
-            };
+                var user = await _context.user
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync(u => u.user_id == request.UserId);
 
-            //Insert user in Db
-            _context.user.Add(users);
-            await _context.SaveChangesAsync();
+                if (user == null)
+                    return Unauthorized("Usuario no encontrado.");
 
-            //asigned role for defect
-            var defaultRoleId = 3;
-            _context.user_role.Add(new UserRoleModel
-            {
-                userrole_userserial = users.user_serial,
-                userrole_roleserial = defaultRoleId,
-                assigned_at = DateTime.UtcNow
-            });
-            await _context.SaveChangesAsync();
+                var inputPasswordHashed = HashPassword(request.UserPassword);
 
-            // 4. Preparar DTO de respuesta (sin contraseña)
-            var result = new UserReadDTOs
-            {
-                UserSerial = users.user_serial,
-                UserPhoto = users.user_photo != null ? Convert.ToBase64String(users.user_photo) : null,
-                UserId = users.user_id,
-                UserFirstName = users.user_firstname,
-                UserMiddleName = users.user_middlename,
-                UserLastName = users.user_lastname,
-                UserSecondLastName = users.user_secondlastname,
-                UserBirthDate = users.user_birthdate,
-                UserUserName = users.user_username,
-                UserEmail = users.user_email
-            };
+                if (!inputPasswordHashed.SequenceEqual(user.user_password))
+                    return Unauthorized("Contraseña incorrecta.");
 
-            return CreatedAtAction(nameof(GetUsers), new { id = users.user_serial }, result);
+                var key = Encoding.ASCII.GetBytes("pSKD93kdFJls00dkfJ2kfjLSKdj38DKSlskfjd94sldkfj"); // ⚠️ mover a appsettings
 
-        }
-
-        // POST: Api/User/Login
-        [HttpPost("Login")]
-        public async Task<ActionResult<string>> Login(UserLoginDTOs loginDTO)
-        {
-            var user = await _context.user.FirstOrDefaultAsync(u => u.user_id == loginDTO.UserId);
-
-            if (user == null)
-            {
-                return Unauthorized("Usuario no encontrado.");
-            }
-
-            // Hasheamos la contraseña ingresada por el usuario
-            var hashedInputPassword = HashPassword(loginDTO.UserPassword);
-
-            // Comparamos los bytes de la contraseña almacenada vs. la ingresada
-            if (!user.user_password.SequenceEqual(hashedInputPassword))
-            {
-                return Unauthorized("Contraseña incorrecta.");
-            }
-
-            var roles = await _context.user_role
-                .Where(ur => ur.userrole_userserial == user.user_serial)
-                .Include(ur => ur.Role)
-                .Select(ur => new RoleReadDTOs
+                var claims = new List<Claim>
                 {
-                    RoleSerial = ur.Role.role_serial,
-                    RoleName = ur.Role.role_name,
-                }).ToListAsync();
+                    new Claim(ClaimTypes.Name, user.user_userName),
+                    new Claim("cedula", user.user_id),
+                    new Claim("user_serial", user.user_serial.ToString()),
+                    new Claim("nombre", user.user_firstName),
+                    new Claim("apellido", user.user_lastName),
+                    new Claim("roles", string.Join(",", user.UserRoles.Select(r => r.Role!.role_name)))
+                };
 
-            return Ok(new
+                var tokenDescriptor = new SecurityTokenDescriptor
+                {
+                    Subject = new ClaimsIdentity(claims),
+                    Expires = DateTime.UtcNow.AddHours(2),
+                    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+                };
+
+                var token = new JwtSecurityTokenHandler().WriteToken(
+                    new JwtSecurityTokenHandler().CreateToken(tokenDescriptor)
+                );
+
+                return Ok(new
+                {
+                    token,
+                    user_serial = user.user_serial,
+                    cedula = user.user_id,
+                    userName = user.user_userName,
+                    nombre = user.user_firstName,
+                    segundoNombre = user.user_middleName,
+                    apellido = user.user_lastName,
+                    segundoApellido = user.user_secondLastName,
+                    email = user.user_email,
+                    roles = user.UserRoles.Select(r => new
+                    {
+                        roleSerial = r.Role!.role_serial,
+                        roleName = r.Role.role_name
+                    })
+                });
+            }
+            catch (Exception ex)
             {
-                Message = "Login exitoso.",
-                UserId = user.user_serial,
-                Roles = roles
-            });
+                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+            }
         }
 
     }

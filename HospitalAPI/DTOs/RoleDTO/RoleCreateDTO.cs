@@ -1,6 +1,6 @@
 ﻿namespace HospitalAPI.DTOs.RoleDTOs
 {
-    public class RoleCreateDTOs
+    public class RoleCreateDTO
     {
     }
 }

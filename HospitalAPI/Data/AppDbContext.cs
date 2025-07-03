@@ -16,17 +16,17 @@ namespace APIhospital.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<UserRoleModel>()
-                .HasKey(ur => new { ur.userrole_userserial, ur.userrole_roleserial });
+                .HasKey(ur => new { ur.userRole_userSerial, ur.userRole_roleSerial });
 
             modelBuilder.Entity<UserRoleModel>()
                 .HasOne(ur => ur.User)
                 .WithMany(u => u.UserRoles)
-                .HasForeignKey(ur => ur.userrole_userserial);
+                .HasForeignKey(ur => ur.userRole_userSerial);
 
             modelBuilder.Entity<UserRoleModel>()
                 .HasOne(ur => ur.Role)
                 .WithMany(r => r.UserRoles)
-                .HasForeignKey(ur => ur.userrole_roleserial);
+                .HasForeignKey(ur => ur.userRole_roleSerial);
 
             // También es buena práctica mapear el nombre de tabla si es lowercase
             modelBuilder.Entity<RoleModel>().ToTable("role");
