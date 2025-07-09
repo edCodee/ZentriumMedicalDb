@@ -119,7 +119,7 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 //Escuchar en cualquier puerto como lo exige Azure, comenta para pruebas locales
-//builder.WebHost.UseUrls("http://+:80");
+builder.WebHost.UseUrls("http://+:80");
 
 #endregion
 
@@ -162,12 +162,12 @@ if (app.Environment.IsDevelopment())
 }
 
 //Sirve en produccion para Azure
-//app.UseSwagger();
-//app.UseSwaggerUI(c =>
-//{
-//    c.SwaggerEndpoint("/swagger/v1/swagger.json", "API DocBot v1");
-//    c.RoutePrefix = string.Empty; // Esto hace que Swagger se sirva en la raíz "/"
-//});
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "API DocBot v1");
+    c.RoutePrefix = string.Empty; // Esto hace que Swagger se sirva en la raíz "/"
+});
 
 // 4.7 Health Checks
 app.MapHealthChecks("/health");
