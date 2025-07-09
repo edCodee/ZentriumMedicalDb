@@ -16,6 +16,7 @@ namespace APIhospital.Data
         public DbSet<ConversationHistoryModel> ConversationHistory { get; set; }
         public DbSet<PatientProfileModel> patient_profile {  get; set; }
         public DbSet<AppointmentModel> appointment { get; set; }
+        public DbSet<MedicalHistoryModel> medical_history { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<UserRoleModel>()
