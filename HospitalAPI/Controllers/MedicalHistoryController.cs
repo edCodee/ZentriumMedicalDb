@@ -17,6 +17,7 @@ namespace HospitalAPI.Controllers
         }
 
         //GET:api/historymedical
+        [HttpGet]
         public async Task<ActionResult<IEnumerable<MedicalHistoryReadDTO>>> GetMedicalHistorys()
         {
             var medical=await _context.medical_history.ToListAsync();
